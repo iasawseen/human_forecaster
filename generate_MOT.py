@@ -50,8 +50,8 @@ def extract_dirs(dirs, min_length=32):
 
 
 if __name__ == '__main__':
-    train_trajectories = extract_dirs(TRAIN_DIRS)
-    val_trajectories = extract_dirs(VAL_DIRS)
+    train_trajectories = extract_dirs(TRAIN_DIRS, min_length=64)
+    val_trajectories = extract_dirs(VAL_DIRS, min_length=64)
 
     save(train_trajectories, file_path=ANNS_TRAIN_FILE_PATH)
     save(val_trajectories, file_path=ANNS_VAL_FILE_PATH)

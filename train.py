@@ -18,10 +18,10 @@ import os
 os.environ['OMP_NUM_THREADS'] = '1'
 
 BATCH_SIZE = 32
-SEQ_LEN = 16
-FUTURE = 16
+SEQ_LEN = 32
+FUTURE = 32
 LR_MAX = 0.001
-EPOCHS = 1024
+EPOCHS = 8
 
 
 def train():
@@ -48,7 +48,12 @@ def train():
     # logdir = './logs/lstm_cell_2048_lr_0.001_seq_len_8_future_8_start_at_center'
     # logdir = './logs/lstm_cell_2048_lr_0.001_seq_len_12_future_4_velocity'
     # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16'
-    logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16_drop_0.5'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16_drop_0.5'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16_drop_0.5_flips'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16_flips_shift'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_16_flips_shift'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift'
+    logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift_all_seq_loss'
 
     # model = Forecaster(input_size=2, hidden_size=1024, output_size=2).cuda()
 

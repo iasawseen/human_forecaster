@@ -35,6 +35,43 @@ class Forecaster(nn.Module):
         return output
 
 
+# class CellForecaster(nn.Module):
+#     def __init__(self, input_size=2, hidden_size=128, output_size=2, future=0):
+#         super(CellForecaster, self).__init__()
+#         self.input_size = input_size
+#         self.output_size = output_size
+#         self.hidden_size = hidden_size
+#         self.future = future
+#
+#         self.rnn = nn.LSTMCell(
+#             input_size=self.input_size,
+#             hidden_size=self.hidden_size
+#         )
+#         self.fc = nn.Sequential(
+#             nn.Dropout(p=0.2),
+#             nn.Linear(self.hidden_size, self.output_size)
+#         )
+#
+#     def forward(self, input):
+#         h_t = torch.zeros(input.size(0), self.hidden_size).cuda()
+#         c_t = torch.zeros(input.size(0), self.hidden_size).cuda()
+#
+#         # h_t = torch.zeros(input.size(0), self.hidden_size)
+#         # c_t = torch.zeros(input.size(0), self.hidden_size)
+#
+#         input = input.transpose(0, 1)
+#
+#         for i in range(input.size(0)):
+#             h_t, c_t = self.rnn(input[i], (h_t, c_t))
+#
+#         for i in range(self.future):
+#             h_t, c_t = self.rnn(self.fc(h_t), (h_t, c_t))
+#
+#         output = self.fc(h_t)
+#
+#         return output
+
+
 class CellForecaster(nn.Module):
     def __init__(self, input_size=2, hidden_size=128, output_size=2, future=0):
         super(CellForecaster, self).__init__()
@@ -48,7 +85,7 @@ class CellForecaster(nn.Module):
             hidden_size=self.hidden_size
         )
         self.fc = nn.Sequential(
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=0.2),
             nn.Linear(self.hidden_size, self.output_size)
         )
 
@@ -64,10 +101,15 @@ class CellForecaster(nn.Module):
         for i in range(input.size(0)):
             h_t, c_t = self.rnn(input[i], (h_t, c_t))
 
+        outputs = list()
+
         for i in range(self.future):
+            output = self.fc(h_t)
+            outputs.append(output)
             h_t, c_t = self.rnn(self.fc(h_t), (h_t, c_t))
 
-        output = self.fc(h_t)
+        output = torch.cat(outputs, dim=1)
+        # output = self.fc(h_t)
 
         return output
 
