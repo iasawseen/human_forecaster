@@ -2,7 +2,14 @@ import numpy as np
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from utils import save, load
-from generate import ANNS_TRAIN_FILE_PATH, ANNS_VAL_FILE_PATH
+
+PARENT_FOLDER = '/home/marcus/data/sber/data/'
+
+ANN_FOLDER_TRAIN = PARENT_FOLDER + 'posetrack_data/annotations/train/'
+ANN_FOLDER_VAL = PARENT_FOLDER + 'posetrack_data/annotations/val/'
+
+ANNS_TRAIN_FILE_PATH = PARENT_FOLDER + 'train_anns.pkl'
+ANNS_VAL_FILE_PATH = PARENT_FOLDER + 'val_anns.pkl'
 
 DATASET_DIR = '/home/marcus/data/sber/data/MOT16/train/'
 
