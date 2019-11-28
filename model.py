@@ -3,6 +3,7 @@ import numpy as np
 from utils import load
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from collections import defaultdict
+from sklearn.linear_model import HuberRegressor, LinearRegression
 
 
 class Detector:
@@ -35,6 +36,10 @@ class Detector:
             box_nms_thresh=self.nms_threshold
         ).cuda()
         self.model.eval()
+        self.name_to_index = {name: index for index, name in enumerate(self.COCO_PERSON_KEYPOINT_NAMES)}
+
+    def get_coors(self, keypoint, name):
+        return keypoint[self.name_to_index[name], 0], keypoint[self.name_to_index[name], 1]
 
     def predict(self, img):
         img = img.transpose((2, 0, 1))
@@ -55,10 +60,11 @@ class Detector:
 
             x_min, y_min = box[:2]
             x_max, y_max = box[2:]
-            x_nose, y_nose = keypoint[0, 0], keypoint[0, 1]
 
             prediction_dict['boxes'].append(((x_min, y_min), (x_max, y_max)))
-            prediction_dict['noses'].append((x_nose, y_nose))
+
+            for keypoint_name in self.COCO_PERSON_KEYPOINT_NAMES:
+                prediction_dict[keypoint_name].append(self.get_coors(keypoint, keypoint_name))
 
         return prediction_dict
 
@@ -84,8 +90,17 @@ class ModelWrapper:
         return np.array(output)
 
     def predict(self, queue):
+        def smooth_data(traj):
+            x_train, y_train = traj[:, 0].reshape((-1, 1)), traj[:, 1]
+            huber = LinearRegression()
+            huber.fit(x_train, y_train)
+            prediction = huber.predict(x_train).reshape((-1, 1))
+            return np.hstack((x_train, prediction))
+
         data = np.array(queue)
+        data = smooth_data(data)
         data = data[-self.length:]
+
         data = self.process_chunk(data).reshape((1, -1))
         prediction = self.model.predict(data).flatten()[:2]
         return prediction
