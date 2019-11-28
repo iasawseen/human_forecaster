@@ -8,13 +8,14 @@ PARENT_FOLDER = '/home/marcus/data/sber/data/'
 ANN_FOLDER_TRAIN = PARENT_FOLDER + 'posetrack_data/annotations/train/'
 ANN_FOLDER_VAL = PARENT_FOLDER + 'posetrack_data/annotations/val/'
 
-ANNS_TRAIN_FILE_PATH = PARENT_FOLDER + 'train_anns.pkl'
-ANNS_VAL_FILE_PATH = PARENT_FOLDER + 'val_anns.pkl'
+ANNS_TRAIN_FILE_PATH = PARENT_FOLDER + 'train_anns_min_length_{}.pkl'
+ANNS_VAL_FILE_PATH = PARENT_FOLDER + 'val_anns_min_length_{}.pkl'
 
 DATASET_DIR = '/home/marcus/data/sber/data/MOT16/train/'
 
 TRAIN_DIRS = (
     'MOT16-02/', 'MOT16-04/',
+    'MOT16-09/',
     # 'MOT16-05/',
     # 'MOT16-10/',
     # 'MOT16-11/',
@@ -63,8 +64,11 @@ def extract_dirs(dirs, min_length=32):
 
 
 if __name__ == '__main__':
-    train_trajectories = extract_dirs(TRAIN_DIRS, min_length=128)
-    val_trajectories = extract_dirs(VAL_DIRS, min_length=128)
 
-    save(train_trajectories, file_path=ANNS_TRAIN_FILE_PATH)
-    save(val_trajectories, file_path=ANNS_VAL_FILE_PATH)
+    for min_length in (8, 16, 32, 64, 128, 256, 384):
+
+        train_trajectories = extract_dirs(TRAIN_DIRS, min_length=min_length)
+        val_trajectories = extract_dirs(VAL_DIRS, min_length=min_length)
+
+        save(train_trajectories, file_path=ANNS_TRAIN_FILE_PATH.format(min_length))
+        save(val_trajectories, file_path=ANNS_VAL_FILE_PATH.format(min_length))
