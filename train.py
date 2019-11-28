@@ -3,7 +3,7 @@ import torch.nn as nn
 from collections import OrderedDict
 from catalyst.dl import SupervisedRunner
 from apex import amp
-from catalyst.contrib.criterion import HuberLoss, MSELoss
+from catalyst.contrib.criterion import HuberLoss, MSELoss, L1Loss
 from catalyst.contrib.optimizers import RAdam, Lookahead
 
 from dataset import get_dataloaders
@@ -13,6 +13,8 @@ from catalyst.dl.callbacks import DiceCallback, IouCallback, \
 
 from model import Forecaster, CellForecaster
 from schedulers import CosineWithRestarts
+from metrics import MAEMetric
+from utils import set_seed
 
 import os
 os.environ['OMP_NUM_THREADS'] = '1'
@@ -25,6 +27,8 @@ EPOCHS = 8
 
 
 def train():
+    set_seed(42)
+
     loaders = OrderedDict()
     train_loader, valid_loader = get_dataloaders(batch_size=BATCH_SIZE, seq_len=SEQ_LEN, future=FUTURE)
     loaders['train'] = train_loader
@@ -53,19 +57,31 @@ def train():
     # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_16_future_16_flips_shift'
     # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_16_flips_shift'
     # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift'
-    logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift_all_seq_loss'
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift_all_seq_loss'
+
+    # logdir = './logs/MOT_data_lstm_cell_1024_lr_0.001_seq_len_32_future_32_drop_0.2_flips_shift_all_seq_loss'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_128'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_64'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_32'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_huber_200'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_16_huber_200'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_32_huber_1.0'
+    # logdir = './logs/MOT_data_lstm_cell_1024_len_32_future_32_batch_32'
+    logdir = './logs/MOT_data_lstm_cell_128_len_32_future_32_batch_32'
 
     # model = Forecaster(input_size=2, hidden_size=1024, output_size=2).cuda()
 
     model = CellForecaster(
         input_size=2,
-        hidden_size=1024,
+        hidden_size=128,
         output_size=2,
         future=FUTURE
     ).cuda()
 
     criterion = {
-        'huber': HuberLoss(),
+        # 'huber': HuberLoss(),
+        # 'huber': HuberLoss(clip_delta=1.0),
+        'huber': L1Loss(),
         # 'huber': MSELoss(),
     }
 
@@ -102,6 +118,11 @@ def train():
                 loss_keys=['loss_huber'],
                 loss_aggregate_fn='sum'
             ),
+            MAEMetric(
+                input_key='target',
+                output_key='logits',
+                prefix='mae'
+            )
             # SchedulerCallback(mode='batch')
         ]
     )

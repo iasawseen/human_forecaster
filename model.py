@@ -85,7 +85,7 @@ class CellForecaster(nn.Module):
             hidden_size=self.hidden_size
         )
         self.fc = nn.Sequential(
-            nn.Dropout(p=0.2),
+            # nn.Dropout(p=0.2),
             nn.Linear(self.hidden_size, self.output_size)
         )
 

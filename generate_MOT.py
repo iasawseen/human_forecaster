@@ -6,7 +6,13 @@ from generate import ANNS_TRAIN_FILE_PATH, ANNS_VAL_FILE_PATH
 
 DATASET_DIR = '/home/marcus/data/sber/data/MOT16/train/'
 
-TRAIN_DIRS = ('MOT16-02/', 'MOT16-04/')
+TRAIN_DIRS = (
+    'MOT16-02/', 'MOT16-04/',
+    # 'MOT16-05/',
+    # 'MOT16-10/',
+    # 'MOT16-11/',
+    # 'MOT16-13/',
+)
 VAL_DIRS = ('MOT16-09/',)
 
 DATA_PATH = 'gt/gt.txt'
@@ -50,8 +56,8 @@ def extract_dirs(dirs, min_length=32):
 
 
 if __name__ == '__main__':
-    train_trajectories = extract_dirs(TRAIN_DIRS, min_length=64)
-    val_trajectories = extract_dirs(VAL_DIRS, min_length=64)
+    train_trajectories = extract_dirs(TRAIN_DIRS, min_length=128)
+    val_trajectories = extract_dirs(VAL_DIRS, min_length=128)
 
     save(train_trajectories, file_path=ANNS_TRAIN_FILE_PATH)
     save(val_trajectories, file_path=ANNS_VAL_FILE_PATH)

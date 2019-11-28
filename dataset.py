@@ -12,6 +12,9 @@ warnings.filterwarnings("ignore")
 
 
 class PoseDataset(torch.utils.data.Dataset):
+    WIDTH = 1920 / 2000
+    HEIGHT = 1080 / 2000
+
     def __init__(self, data_type='train', seq_len=12, future=0):
         self.data_type = data_type
 
@@ -20,7 +23,7 @@ class PoseDataset(torch.utils.data.Dataset):
         else:
             self.data = load(ANNS_VAL_FILE_PATH)
 
-        self.data = [np.array(data) for data in self.data]
+        self.data = [np.array(data) / 2000 for data in self.data]
 
         self.seq_len = seq_len
         self.future = future
@@ -55,8 +58,8 @@ class PoseDataset(torch.utils.data.Dataset):
         target = np.array(self.targets[idx])
 
         if self.data_type == 'train' and np.random.rand() > 0.5:
-            input[:, 0] = 1920 - input[:, 0]
-            target[:, 0] = 1920 - target[:, 0]
+            input[:, 0] = self.WIDTH - input[:, 0]
+            target[:, 0] = self.WIDTH - target[:, 0]
 
         # if self.data_type == 'train' and np.random.rand() > 0.5:
         #     input[:, 1] = 1080 - input[:, 1]
@@ -69,7 +72,7 @@ class PoseDataset(torch.utils.data.Dataset):
             y_min = min(np.min(input[:, 1]), np.min(target[:, 1]))
             y_max = max(np.max(input[:, 1]), np.max(target[:, 1]))
 
-            x_half_range = min(x_min, 1920 - x_max, 0)
+            x_half_range = min(x_min, self.WIDTH - x_max, 0)
             y_half_range = y_min
 
             x_shift = np.random.randint(-x_half_range, x_half_range + 1)
