@@ -3,7 +3,7 @@ from tracking import IOUModelTracking
 from tqdm import tqdm
 import os
 import numpy as np
-from model import Detector
+from model import Detector, MMDetector
 from utils import (
     save_video, convert_img_to_rgb,
     video_iter, set_seed
@@ -32,6 +32,11 @@ if __name__ == '__main__':
         score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
         nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
     )
+
+    # det = MMDetector(
+    #     score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+    #     nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+    # )
 
     tracking = IOUModelTracking(
         state_noise=cfg.TRACKING.STATE_NOISE,
