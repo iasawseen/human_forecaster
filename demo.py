@@ -128,5 +128,5 @@ if __name__ == '__main__':
 
     save_video(tracked_frames, fps=cfg.OUTPUT_VIDEO.FPS, file_name='tracked_heads.mp4')
 
-    # os.system('ffmpeg -i tracked_heads.mp4 -vcodec libx264 tracked_heads_2.mp4')
-    # os.system('mv -f tracked_heads_2.mp4 tracked_heads.mp4')
+    os.system('ffmpeg -i tracked_heads.mp4 -vcodec libx264 tracked_heads_2.mp4')
+    os.system('mv -f tracked_heads_2.mp4 tracked_heads.mp4')

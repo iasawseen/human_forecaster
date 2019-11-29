@@ -1,5 +1,4 @@
 FROM pytorch/pytorch:1.2-cuda10.0-cudnn7-devel
-#FROM vistart/mmdetection:latest
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -44,6 +43,12 @@ RUN pip install -v -e .
 RUN pip install yacs
 RUN pip install attrdict
 
-#RUN apt-get install ffmpeg
+RUN apt-get install -y ffmpeg
+
+# Compile and install ffmpeg from source
+#RUN git clone https://github.com/FFmpeg/FFmpeg /root/ffmpeg && \
+#    cd /root/ffmpeg && \
+#    ./configure --enable-nonfree --disable-shared --extra-cflags=-I/usr/local/include && \
+#    make -j8 && make install -j8
 
 WORKDIR /pose_forecaster
