@@ -112,8 +112,7 @@ def bb_intersection_over_union(boxA, boxB):
 
 
 class IOUModelTracking:
-    def __init__(self, kalman=False, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_age=4, min_hits=1):
-        self.kalman = kalman
+    def __init__(self, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_age=4, min_hits=1):
         self.state_noise = state_noise
         self.r_scale = r_scale
         self.q_var = q_var

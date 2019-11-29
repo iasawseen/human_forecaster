@@ -63,6 +63,21 @@ def save_video(frames, fps=16, file_name='/home/marcus/data/sber/CenterNet/src/h
 
     out.release()
 
+
+def video_iter(file_path):
+    video = cv2.VideoCapture(file_path)
+
+    success, image = video.read()
+
+    if success:
+        yield image
+
+    while success:
+        success, image = video.read()
+        if success:
+            yield image
+
+
 def set_seed(seed):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)

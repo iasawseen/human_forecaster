@@ -1,12 +1,14 @@
 import cv2
-import PIL.Image
-import io
 from tracking import IOUModelTracking
 from tqdm import tqdm
 import os
 import numpy as np
 from model import Detector
-from utils import save_video, convert_img_to_rgb
+from utils import (
+    save_video, convert_img_to_rgb,
+    video_iter, set_seed
+)
+from configs.config import get_cfg
 
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/TUD-Stadtmitte.mp4'
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/MOT17-09-SDP.mp4'
@@ -20,35 +22,27 @@ VIDEO_FILE_NAME = '/home/marcus/data/sber/people_walking_russia.mp4'
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/forecaster/P1033788.mp4'
 
 
-def video_iter(file_path):
-    video = cv2.VideoCapture(file_path)
-
-    success, image = video.read()
-
-    if success:
-        yield image
-
-    while success:
-        success, image = video.read()
-        if success:
-            yield image
-
-
 if __name__ == '__main__':
-    det = Detector(score_threshold=0.75, nms_threshold=0.2)
+    cfg = get_cfg()
+    set_seed(cfg.SEED)
+
+    det = Detector(
+        score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+        nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+    )
 
     tracking = IOUModelTracking(
-        kalman=True,
-        state_noise=1000.0, r_scale=5.0, q_var=100.0,
-        iou_threshold=0.1, max_age=6, min_hits=2
+        state_noise=cfg.TRACKING.STATE_NOISE,
+        r_scale=cfg.TRACKING.R_SCALE,
+        q_var=cfg.TRACKING.Q_VAR,
+        iou_threshold=cfg.TRACKING.IOU_THRESHOLD,
+        max_age=cfg.TRACKING.MAX_AGE,
+        min_hits=cfg.TRACKING.MIN_HITS
     )
 
     tracked_frames = list()
 
-    blob_size = int(1920 * 0.005)
-    line_width = int(1920 * 0.005)
-
-    cycle_len = 32
+    cycle_len = cfg.OUTPUT_VIDEO.CYCLE_LEN
 
     draw_tracks = False
     saved_tracks, saved_colors = None, None
@@ -69,12 +63,14 @@ if __name__ == '__main__':
                     cv2.line(
                         next_frame_to_visual,
                         (x_start, y_start), (x_end, y_end),
-                        color.tolist(), line_width
+                        color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH
                     )
 
         if i != 0 and i % cycle_len == 0:
             draw_tracks = True
-            trajectories, colors = tracking.predict_trajectories(cycle_len, min_age=6)
+            trajectories, colors = tracking.predict_trajectories(
+                cycle_len, min_age=cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
+            )
             saved_tracks, saved_colors = trajectories, colors
 
             for time_index in range(1, cycle_len):
@@ -87,7 +83,7 @@ if __name__ == '__main__':
                     cv2.line(
                         next_frame_to_visual,
                         (x_start, y_start), (x_end, y_end),
-                        color.tolist(), line_width
+                        color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH
                     )
 
                 tracked_frames.append(next_frame_to_visual)
@@ -119,12 +115,16 @@ if __name__ == '__main__':
             x_min, x_max = int(box_center[0]) - width // 2, int(box_center[0]) + width // 2
             y_min, y_max = int(box_center[1]) - height // 2, int(box_center[1]) + height // 2
 
-            cv2.circle(next_frame_to_visual, (int(center[0]), int(center[1])), blob_size, color.tolist(), -1)
+            cv2.circle(
+                next_frame_to_visual,
+                (int(center[0]), int(center[1])),
+                cfg.OUTPUT_VIDEO.BLOB_SIZE, color.tolist(), -1
+            )
         #         cv2.rectangle(next_frame_to_visual, (x_min, y_min), (x_max, y_max), color.tolist(), line_width)
 
         tracked_frames.append(next_frame_to_visual)
 
-    save_video(tracked_frames, fps=8, file_name='tracked_heads.mp4')
+    save_video(tracked_frames, fps=cfg.OUTPUT_VIDEO.FPS, file_name='tracked_heads.mp4')
 
     os.system('ffmpeg -i tracked_heads.mp4 -vcodec libx264 tracked_heads_2.mp4')
     os.system('mv -f tracked_heads_2.mp4 tracked_heads.mp4')
