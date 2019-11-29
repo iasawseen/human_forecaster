@@ -4,6 +4,15 @@ from utils import load
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from collections import defaultdict
 from sklearn.linear_model import HuberRegressor, LinearRegression
+from mmdet.apis import init_detector, inference_detector, show_result, show_result_pyplot
+import mmcv
+
+
+# DETECTOR_CONFIG = '/home/marcus/libs/mmdetection/configs/head_retinanet_r50_fpn_1x.py'
+# DETECTOR_CHECKPOINT = '/home/marcus/libs/mmdetection/work_dirs/retinanet_r50_fpn_1x/epoch_7.pth'
+
+DETECTOR_CONFIG = '/home/marcus/libs/mmdetection/configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
+DETECTOR_CHECKPOINT = '/home/marcus/libs/mmdetection/work_dirs/head_cascade/epoch_11.pth'
 
 
 class Detector:
@@ -69,38 +78,45 @@ class Detector:
         return prediction_dict
 
 
-class ModelWrapper:
-    def __init__(self, file_path_pattern, length):
-        self.model = load(file_path=file_path_pattern.format(length))
-        self.length = length
+class MMDetector:
+    def __init__(self, score_threshold=0.75, nms_threshold=0.75, cuda_id=0):
+        self.score_threshold = score_threshold
+        self.nms_threshold = nms_threshold
 
-    def process_chunk(self, chunk):
-        def get_axis_features(chunk, axis):
-            axis_min, axis_max, axis_mean = chunk[:, axis].min(), chunk[:, axis].max(), chunk[:, axis].mean()
-            axis_median, axis_std = np.median(chunk[:, axis]), chunk[:, axis].std()
+        torch.cuda.set_device(cuda_id)
 
-            return [
-                axis_min, axis_max, axis_mean, axis_median, axis_std,
-            ]
+        config_file = DETECTOR_CONFIG
+        checkpoint_file = DETECTOR_CHECKPOINT
 
-        output = chunk.flatten().tolist()
-        output.extend(get_axis_features(chunk, axis=0))
-        output.extend(get_axis_features(chunk, axis=1))
+        self.model = init_detector(config_file, checkpoint_file, device='cuda:{}'.format(cuda_id))
 
-        return np.array(output)
+        if 'retinanet' in config_file:
+            self.model.cfg['test_cfg']['score_thr'] = score_threshold
+            self.model.cfg['test_cfg']['nms']['iou_thr'] = nms_threshold
+        else:
+            self.model.cfg['test_cfg']['rcnn']['score_thr'] = score_threshold
+            self.model.cfg['test_cfg']['rcnn']['nms']['iou_thr'] = nms_threshold
 
-    def predict(self, queue):
-        def smooth_data(traj):
-            x_train, y_train = traj[:, 0].reshape((-1, 1)), traj[:, 1]
-            huber = LinearRegression()
-            huber.fit(x_train, y_train)
-            prediction = huber.predict(x_train).reshape((-1, 1))
-            return np.hstack((x_train, prediction))
+    def predict(self, img):
+        result = inference_detector(self.model, img)
 
-        data = np.array(queue)
-        data = smooth_data(data)
-        data = data[-self.length:]
+        bboxes = np.vstack(result)
 
-        data = self.process_chunk(data).reshape((1, -1))
-        prediction = self.model.predict(data).flatten()[:2]
-        return prediction
+        labels = [
+            np.full(bbox.shape[0], i, dtype=np.int32)
+            for i, bbox in enumerate(result)
+        ]
+
+        labels = np.concatenate(labels)
+
+        prediction_dict = defaultdict(list)
+
+        for box in bboxes:
+            # if box[4] > self.score_threshold:
+            x_min, y_min = box[:2]
+            x_max, y_max = box[2:4]
+
+            prediction_dict['boxes'].append(((x_min, y_min), (x_max, y_max)))
+            prediction_dict['scores'].append(box[4])
+
+        return prediction_dict

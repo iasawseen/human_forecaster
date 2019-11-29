@@ -1,13 +1,11 @@
 from collections import deque
 from scipy.optimize import linear_sum_assignment
 import numpy as np
-from model import ModelWrapper
 from filterpy.kalman import KalmanFilter, ExtendedKalmanFilter, EnsembleKalmanFilter
 from filterpy.common import Q_discrete_white_noise
 import seaborn as sns
 import itertools
 import copy
-from sklearn.linear_model import LinearRegression, Lasso
 
 
 class KalmanWrapper:
@@ -83,86 +81,6 @@ class IOUKalmanTracker:
 
     def get_estimation(self):
         return self.center_filter.get_coors()
-
-    def get_box_size(self):
-        return self.box_size
-
-
-class IOUModelTracker:
-    def __init__(self, detection, color=(255, 0, 0)):
-        self.center_queue = deque()
-        self.nose_queue = deque()
-        self.color = color
-        self.center_queue.append(detection['center'])
-        self.nose_queue.append(detection['nose'])
-        self.box_size = self.box_to_size(detection['box'])
-
-        file_path_pattern = '/home/marcus/data/sber/lr_len_{}.pkl'
-        # file_path_pattern = 'lr_len_{}.pkl'
-        self.lengths = (2, 4, 8, 16, 32, 64)
-        self.models = [ModelWrapper(file_path_pattern, length) for length in self.lengths]
-        self.hits = 0
-        self.no_losses = 0
-
-    def box_to_size(self, box):
-        return box[1][0] - box[0][0], box[1][1] - box[0][1]
-
-    def _predict_next_detection(self, queue):
-        if len(queue) == 1:
-            return queue[-1]
-
-        current_model = self._choose_right_model()
-        return current_model.predict(queue)
-
-    # @staticmethod
-    # def _predict_next_detection(queue):
-    #     if len(queue) == 1:
-    #         return queue[-1]
-    #
-    #     def smooth_data(traj):
-    #         x_train, y_train = traj[:, 0].reshape((-1, 1)), traj[:, 1]
-    #         huber = LinearRegression()
-    #         huber.fit(x_train, y_train)
-    #         prediction = huber.predict(x_train).reshape((-1, 1))
-    #         return np.hstack((x_train, prediction))
-    #
-    #     data = np.array(queue)
-    #     data = smooth_data(data)
-    #     velocity = (data[-1, :] - data[0, :]) / data.shape[0]
-    #
-    #     prediction = data[-1, :] + velocity
-    #
-    #     return prediction.flatten()
-
-    def _choose_right_model(self):
-        right_index = 0
-        for index, model_length in enumerate(self.lengths):
-            if model_length <= len(self.center_queue):
-                right_index = index
-            else:
-                break
-        return self.models[right_index]
-
-    def update(self, detection):
-        self.center_queue.append(detection['center'])
-        self.nose_queue.append(detection['nose'])
-        self.box_size = self.box_to_size(detection['box'])
-
-    def update_with_estimation(self):
-        next_center = self._predict_next_detection(self.center_queue)
-        next_nose = self._predict_next_detection(self.nose_queue)
-        self.center_queue.append(next_center)
-        self.nose_queue.append(next_nose)
-
-    def get_state(self):
-        return {
-            'center': self.center_queue[-1],
-            'nose': self.nose_queue[-1],
-            'color': self.color
-        }
-
-    def get_estimation(self):
-        return self._predict_next_detection(self.center_queue)
 
     def get_box_size(self):
         return self.box_size
@@ -315,18 +233,11 @@ class IOUModelTracking:
             for index in unmatched_detections:
                 detection = detections[index]
 
-                if self.kalman:
-                    # raise ValueError
-                    new_tracker = IOUKalmanTracker(
-                        detection,
-                        state_noise=self.state_noise, r_scale=self.r_scale, q_var=self.q_var,
-                        color=(np.array(next(self.tracker_palette)) * 255).astype(np.int)
-                    )
-                else:
-                    new_tracker = IOUModelTracker(
-                        detection,
-                        color=(np.array(next(self.tracker_palette)) * 255).astype(np.int)
-                    )
+                new_tracker = IOUKalmanTracker(
+                    detection,
+                    state_noise=self.state_noise, r_scale=self.r_scale, q_var=self.q_var,
+                    color=(np.array(next(self.tracker_palette)) * 255).astype(np.int)
+                )
 
                 self.tracker_list.append(new_tracker)
 
