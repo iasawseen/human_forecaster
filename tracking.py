@@ -6,6 +6,7 @@ from filterpy.kalman import KalmanFilter, ExtendedKalmanFilter, EnsembleKalmanFi
 from filterpy.common import Q_discrete_white_noise
 import seaborn as sns
 import itertools
+import copy
 from sklearn.linear_model import LinearRegression, Lasso
 
 
@@ -54,6 +55,7 @@ class IOUKalmanTracker:
 
         self.hits = 0
         self.no_losses = 0
+        self.age = 1
 
     def box_to_size(self, box):
         return box[1][0] - box[0][0], box[1][1] - box[0][1]
@@ -64,12 +66,12 @@ class IOUKalmanTracker:
         self.nose_filter.predict()
         self.nose_filter.update(detection['nose'])
         self.box_size = self.box_to_size(detection['box'])
-
-        # print('P', self.nose_filter.filter.P)
+        self.age += 1
 
     def update_with_estimation(self):
         self.center_filter.predict()
         self.nose_filter.predict()
+        self.age += 1
 
     def get_state(self):
         return {
@@ -262,6 +264,23 @@ class IOUModelTracking:
 
         return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
+    def predict_trajectories(self, future_len=32, min_age=6):
+        trackers = [copy.deepcopy(tracker) for tracker in self.tracker_list if tracker.age > min_age]
+        trajectories = [list() for _ in range(len(trackers))]
+
+        for _ in range(future_len):
+            for index, tracker in enumerate(trackers):
+                trajectories[index].append(tracker.get_state())
+                tracker.update_with_estimation()
+
+        def process_trajectory(trajectory):
+            return np.array([point['nose'] for point in trajectory]).astype(np.int)
+
+        trajectories_array = [process_trajectory(trajectory) for trajectory in trajectories]
+        trajectories_color = [trajectory[0]['color'] for trajectory in trajectories]
+
+        return trajectories_array, trajectories_color
+
     def track(self, detections):
         """
         Pipeline function for detection and tracking
@@ -336,6 +355,8 @@ if __name__ == "__main__":
         {'center': [100, 100], 'box': [[50, 50], [150, 150]], 'nose': [75, 75]}
     )
 
+    uber_tracker_copy = copy.deepcopy(uber_tracker)
+
     print(uber_tracker.get_estimation())
 
     for measurement in (
@@ -349,11 +370,16 @@ if __name__ == "__main__":
     ):
         uber_tracker.update(detection=measurement)
         print(uber_tracker.get_state())
-        print()
 
     print('\n\n\n')
 
     for i in range(10):
         uber_tracker.update_with_estimation()
         print(uber_tracker.get_state())
-        print()
+
+    print()
+
+    for i in range(10):
+        uber_tracker_copy.update_with_estimation()
+        print(uber_tracker_copy.get_state())
+
