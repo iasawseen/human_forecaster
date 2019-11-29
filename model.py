@@ -112,7 +112,6 @@ class MMDetector:
         prediction_dict = defaultdict(list)
 
         for box in bboxes:
-            # if box[4] > self.score_threshold:
             x_min, y_min = box[:2]
             x_max, y_max = box[2:4]
 
