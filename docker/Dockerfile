@@ -29,4 +29,12 @@ RUN pip install sklearn
 RUN pip install yacs
 RUN pip install attrdict
 
+RUN conda install cython -y && conda clean --all
+
+WORKDIR /tmp/for_mmdetection
+RUN git clone https://github.com/open-mmlab/mmdetection.git
+WORKDIR /tmp/for_mmdetection/mmdetection
+RUN pip install mmcv
+RUN pip install -v -e .
+
 WORKDIR /pose_forecaster

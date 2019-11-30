@@ -3,11 +3,8 @@ from tracking import IOUModelTracking
 from tqdm import tqdm
 import os
 import numpy as np
-from model import Detector
-from utils import (
-    save_video, convert_img_to_rgb,
-    video_iter, set_seed
-)
+from model import PoseDetector, HeadDetector
+from utils import save_video, video_iter, set_seed
 from configs.config import get_cfg
 
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/TUD-Stadtmitte.mp4'
@@ -24,14 +21,41 @@ VIDEO_FILE_NAME = 'MOT17-09-SDP.mp4'
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/forecaster/P1033788.mp4'
 
 
-if __name__ == '__main__':
-    cfg = get_cfg()
-    set_seed(cfg.SEED)
+def draw_tracked_detections(frame, tracked_detections):
+    for detection in tracked_detections:
+        center = detection['nose']
+        color = detection['color']
+        box_center = detection['center']
+        width, height = detection['box_size']
 
-    det = Detector(
-        score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
-        nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
-    )
+        x_min, x_max = int(box_center[0] - width // 2), int(box_center[0] + width // 2)
+        y_min, y_max = int(box_center[1] - height // 2), int(box_center[1] + height // 2)
+
+        cv2.circle(
+            frame,
+            (int(center[0]), int(center[1])),
+            cfg.OUTPUT_VIDEO.BLOB_SIZE, color.tolist(), -1
+        )
+
+        if cfg.OUTPUT_VIDEO.DRAW_BOX:
+            cv2.rectangle(
+                frame,
+                (x_min, y_min), (x_max, y_max),
+                color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH)
+
+
+def demo(cfg):
+
+    if cfg.MAIN.HEAD_DETECTION:
+        det = HeadDetector(
+            score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+            nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+        )
+    else:
+        det = PoseDetector(
+            score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+            nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+        )
 
     tracking = IOUModelTracking(
         state_noise=cfg.TRACKING.STATE_NOISE,
@@ -90,39 +114,9 @@ if __name__ == '__main__':
 
                 tracked_frames.append(next_frame_to_visual)
 
-            saved_frame_to_visual = np.array(next_frame_to_visual)
-
-        pred = det.predict(convert_img_to_rgb(next_frame) / 255)
-
-        def get_box_center(box):
-            return (box[1][0] + box[0][0]) // 2, (box[1][1] + box[0][1]) // 2
-
-        pred_boxes = [
-            {
-                'center': get_box_center(box),
-                'box': box,
-                'nose': (np.array(pred['left_shoulder'][index]) + np.array(pred['right_shoulder'][index])) / 2
-            }
-            for index, box in enumerate(pred['boxes'])
-        ]
-
-        tracked_detections = tracking.track(pred_boxes)
-
-        for detection in tracked_detections:
-            center = detection['nose']
-            color = detection['color']
-            box_center = detection['center']
-            width, height = detection['box_size']
-
-            x_min, x_max = int(box_center[0]) - width // 2, int(box_center[0]) + width // 2
-            y_min, y_max = int(box_center[1]) - height // 2, int(box_center[1]) + height // 2
-
-            cv2.circle(
-                next_frame_to_visual,
-                (int(center[0]), int(center[1])),
-                cfg.OUTPUT_VIDEO.BLOB_SIZE, color.tolist(), -1
-            )
-        #         cv2.rectangle(next_frame_to_visual, (x_min, y_min), (x_max, y_max), color.tolist(), line_width)
+        predictions = det.predict(next_frame)
+        tracked_detections = tracking.track(predictions)
+        draw_tracked_detections(next_frame_to_visual, tracked_detections)
 
         tracked_frames.append(next_frame_to_visual)
 
@@ -130,3 +124,9 @@ if __name__ == '__main__':
 
     os.system('ffmpeg -i tracked_heads.mp4 -vcodec libx264 tracked_heads_2.mp4')
     os.system('mv -f tracked_heads_2.mp4 tracked_heads.mp4')
+
+
+if __name__ == '__main__':
+    cfg = get_cfg()
+    set_seed(cfg.MAIN.SEED)
+    demo(cfg)
