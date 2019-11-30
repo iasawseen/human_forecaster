@@ -86,25 +86,20 @@ class PoseDetector:
         return predictions
 
 
-# DETECTOR_CONFIG = '/home/marcus/libs/mmdetection/configs/head_retinanet_r50_fpn_1x.py'
-# DETECTOR_CHECKPOINT = '/home/marcus/libs/mmdetection/work_dirs/retinanet_r50_fpn_1x/epoch_7.pth'
-
-# DETECTOR_CONFIG = '/home/marcus/libs/mmdetection/configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
-# DETECTOR_CHECKPOINT = '/home/marcus/libs/mmdetection/work_dirs/head_cascade/epoch_11.pth'
-
 DETECTOR_CONFIG = './configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
 DETECTOR_CHECKPOINT = './models/cascade_epoch_11.pth'
 
 
 class HeadDetector:
-    def __init__(self, score_threshold=0.75, nms_threshold=0.75, cuda_id=0):
+    def __init__(self, cfg, score_threshold=0.75, nms_threshold=0.75, cuda_id=0):
+        self.cfg = cfg
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
 
         torch.cuda.set_device(cuda_id)
 
-        config_file = DETECTOR_CONFIG
-        checkpoint_file = DETECTOR_CHECKPOINT
+        config_file = self.cfg.DETECTING.HEAD_CONFIG_FILE_PATH
+        checkpoint_file = self.cfg.DETECTING.HEAD_CHECKPOINT_FILE_PATH
 
         self.model = init_detector(
             config_file, checkpoint_file,
@@ -122,11 +117,6 @@ class HeadDetector:
         result = inference_detector(self.model, img)
 
         bboxes = np.vstack(result)
-
-        # labels = [
-        #     np.full(bbox.shape[0], i, dtype=np.int32)
-        #     for i, bbox in enumerate(result)
-        # ]
 
         prediction_dict = defaultdict(list)
 

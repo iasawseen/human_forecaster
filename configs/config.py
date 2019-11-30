@@ -8,6 +8,8 @@ _C.MAIN.SEED = 42
 _C.MAIN.HEAD_DETECTION = False
 
 _C.DETECTING = CN()
+_C.DETECTING.HEAD_CONFIG_FILE_PATH = './configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
+_C.DETECTING.HEAD_CHECKPOINT_FILE_PATH = './models/cascade_epoch_11.pth'
 _C.DETECTING.SCORE_THRESHOLD = 0.75
 _C.DETECTING.NMS_IOU_THRESHOLD = 0.2
 

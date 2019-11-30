@@ -1,6 +1,6 @@
 from scipy.optimize import linear_sum_assignment
 import numpy as np
-from filterpy.kalman import KalmanFilter, ExtendedKalmanFilter, EnsembleKalmanFilter
+from filterpy.kalman import KalmanFilter
 from filterpy.common import Q_discrete_white_noise
 import seaborn as sns
 import itertools
@@ -117,6 +117,7 @@ class Tracking:
 
         if self.cfg.MAIN.HEAD_DETECTION:
             self.detector = HeadDetector(
+                self.cfg,
                 score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
                 nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
             )
@@ -308,4 +309,3 @@ if __name__ == "__main__":
     for i in range(10):
         uber_tracker_copy.update_with_estimation()
         print(uber_tracker_copy.get_state())
-
