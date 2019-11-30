@@ -21,13 +21,14 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN pip install opencv-python
-RUN pip install scipy
-RUN pip install filterpy
-RUN pip install seaborn
-RUN pip install sklearn
-RUN pip install yacs
-RUN pip install attrdict
+RUN pip install \
+    opencv-python \
+    scipy \
+    filterpy \
+    seaborn \
+    sklearn \
+    yacs \
+    attrdict
 
 RUN conda install cython -y && conda clean --all
 
