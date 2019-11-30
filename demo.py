@@ -10,7 +10,8 @@ def parse_args():
     parser.add_argument('-o', '--output-video', type=str, default='processed.mp4', help='file_path for output video')
     parser.add_argument('--head-detection', help='detect only heads', action='store_true')
     parser.add_argument(
-        '-l', '--prediction-length', type=int, default=16, help='number of frames to predict trajectory in the future'
+        '-l', '--prediction-length', type=float, default=1.0,
+        help='number of seconds to predict trajectory in the future'
     )
 
     return parser.parse_args()

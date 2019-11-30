@@ -1,9 +1,9 @@
 import torch
 import numpy as np
+import cv2
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from mmdet.apis import init_detector, inference_detector
 from collections import defaultdict
-from utils import convert_img_to_rgb
 
 
 def get_box_center(box):
@@ -45,8 +45,12 @@ class PoseDetector:
     def get_coors(self, keypoint, name):
         return keypoint[self.name_to_index[name], 0], keypoint[self.name_to_index[name], 1]
 
+    @staticmethod
+    def convert_bgr_to_rgb(img):
+        return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
     def predict(self, img):
-        img = convert_img_to_rgb(img) / 255
+        img = self.convert_bgr_to_rgb(img) / 255
         img = img.transpose((2, 0, 1))
         x = [torch.from_numpy(img.astype(np.float32)).cuda()]
 
@@ -84,10 +88,6 @@ class PoseDetector:
         ]
 
         return predictions
-
-
-DETECTOR_CONFIG = './configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
-DETECTOR_CHECKPOINT = './models/cascade_epoch_11.pth'
 
 
 class HeadDetector:

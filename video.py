@@ -3,7 +3,6 @@ from tracking import Tracking
 from tqdm import tqdm
 import os
 import numpy as np
-from utils import video_iter
 
 
 class VideoProcessor:
@@ -26,26 +25,51 @@ class VideoProcessor:
         draw_tracks = False
         trajectories, colors = None, None
 
-        for i, next_frame in tqdm(enumerate(video_iter(video_file_path))):
+        video_iterator = self.video_iter(video_file_path)
+        fps = int(next(video_iterator))
+
+        future_len = int(self.cfg.OUTPUT_VIDEO.CYCLE_LEN * fps)
+
+        for i, next_frame in tqdm(enumerate(video_iterator)):
             next_frame_to_visual = np.array(next_frame)
 
-            if draw_tracks and i % self.cfg.OUTPUT_VIDEO.CYCLE_LEN != 0:
-                self.draw_trajectories(next_frame_to_visual, trajectories=trajectories, colors=colors)
+            if draw_tracks and i % future_len != 0:
+                self.draw_trajectories(
+                    next_frame_to_visual,
+                    trajectories=trajectories, future_len=future_len, colors=colors
+                )
 
-            if i != 0 and i % self.cfg.OUTPUT_VIDEO.CYCLE_LEN == 0:
+            if i != 0 and i % future_len == 0:
                 draw_tracks = True
                 trajectories, colors = tracking.predict_trajectories(
-                    self.cfg.OUTPUT_VIDEO.CYCLE_LEN, min_age=self.cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
+                    future_len, min_age=self.cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
                 )
 
                 next_frame_to_visual = self.draw_trajectories(
                     next_frame_to_visual,
-                    trajectories=trajectories, colors=colors, save_intermediate=True
+                    trajectories=trajectories, colors=colors, future_len=future_len, save_intermediate=True
                 )
 
             tracked_detections = tracking.track(next_frame)
             self.draw_tracked_detections(next_frame_to_visual, tracked_detections)
             self.tracked_frames.append(next_frame_to_visual)
+
+    @staticmethod
+    def video_iter(file_path):
+        video = cv2.VideoCapture(file_path)
+        fps = video.get(cv2.CAP_PROP_FPS)
+
+        yield fps
+
+        success, image = video.read()
+
+        if success:
+            yield image
+
+        while success:
+            success, image = video.read()
+            if success:
+                yield image
 
     def draw_tracked_detections(self, frame, tracked_detections):
         for detection in tracked_detections:
@@ -69,8 +93,8 @@ class VideoProcessor:
                     (x_min, y_min), (x_max, y_max),
                     color.tolist(), self.cfg.OUTPUT_VIDEO.LINE_WIDTH)
 
-    def draw_trajectories(self, frame, trajectories, colors, save_intermediate=False):
-        for time_index in range(1, self.cfg.OUTPUT_VIDEO.CYCLE_LEN):
+    def draw_trajectories(self, frame, trajectories, colors, future_len, save_intermediate=False):
+        for time_index in range(1, future_len):
             if save_intermediate:
                 frame = np.array(frame)
 
