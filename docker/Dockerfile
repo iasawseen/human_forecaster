@@ -38,4 +38,4 @@ WORKDIR /tmp/for_mmdetection/mmdetection
 RUN pip install mmcv
 RUN pip install -v -e .
 
-WORKDIR /pose_forecaster
+WORKDIR /human_forecaster

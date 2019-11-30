@@ -1,12 +1,15 @@
-APP_NAME=sawseen/pytorch_cv:pose_forecaster
+APP_NAME=sawseen/pytorch_cv:human_forecaster
 CONTAINER_NAME=pose_forecaster
+
+build:
+	docker build docker/ -t $(APP_NAME)
 
 run: ## Run container
 	docker run \
 	    --runtime=nvidia \
 		-itd \
 		--name=${CONTAINER_NAME} \
-        -v $(shell pwd):/pose_forecaster \
+        -v $(shell pwd):/human_forecaster \
 		$(APP_NAME) bash
 
 exec: ## Run a bash in a running container

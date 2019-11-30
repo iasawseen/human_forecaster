@@ -38,19 +38,7 @@ sudo docker build . -t sawseen/pytorch_cv:pose_forecaster
 cd ..
 ```
 
-# Run container
 
-To start working in container run the following commands: 
-
-```bash
-make run 
-make exec 
-```
-
-After you have done working:
-```bash
-make stop 
-```
 
 # Settings 
 
@@ -101,6 +89,14 @@ OUTPUT_VIDEO:
 
 # Demo
 
+To start working in container run the following commands: 
+
+```bash
+make run 
+make exec 
+```
+Then launch `demo.py` with specified arguments:
+
 ```bash
 python demo.py input_videl.mp4 --output-video output_video.mp4 --prediction-length 2.0 --head-detection --draw-boxes
 ``` 
@@ -109,3 +105,8 @@ Where:
 * `prediction-length`: length of trajectories in seconds (overrides config parameter), 
 * `head-detection`: flag whether to detect heads (overrides config parameter),
 * `draw-boxes`: flag whether to draw bounding boxes around objects. 
+
+After you have done working stop and remove container:
+```bash
+make stop 
+```
