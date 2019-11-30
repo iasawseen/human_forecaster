@@ -48,22 +48,6 @@ def convert_img_to_bytes(img):
     return f.getvalue()
 
 
-def save_video(frames, fps=16, file_name='/home/marcus/data/sber/CenterNet/src/heads.avi'):
-    size = frames[0].shape[1], frames[0].shape[0]
-
-    out = cv2.VideoWriter(
-        file_name,
-        fourcc=cv2.VideoWriter_fourcc(*'mp4v'),
-        fps=fps,
-        frameSize=size
-    )
-
-    for i in range(len(frames)):
-        out.write(frames[i])
-
-    out.release()
-
-
 def video_iter(file_path):
     video = cv2.VideoCapture(file_path)
 
