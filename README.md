@@ -38,6 +38,12 @@ sudo docker build . -t sawseen/pytorch_cv:pose_forecaster
 cd ..
 ```
 
+Or alternatively use `make:`
+```bash
+make build
+```
+
+
 # Head detection
 
 If you want to track and predict trajectories based on head detection you need to download  
