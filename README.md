@@ -25,7 +25,7 @@ Thirst of all install Docker:
 ```
 sudo apt install docker.io
 ```
-After that install [nvidia-docker v2.0](https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(version-2.0):
+After that install [nvidia-docker v2.0](<https://github.com/NVIDIA/nvidia-docker/wiki/Installation-(version-2.0)>):
 ```
 docker volume ls -q -f driver=nvidia-docker | xargs -r -I{} -n1 docker ps -q -a -f volume={} | xargs -r docker rm -f
 sudo apt-get purge nvidia-docker
