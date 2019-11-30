@@ -9,6 +9,7 @@ def parse_args():
     parser.add_argument('input_video', type=str, help='file_path for input video')
     parser.add_argument('-o', '--output-video', type=str, default='processed.mp4', help='file_path for output video')
     parser.add_argument('--head-detection', help='detect only heads', action='store_true')
+    parser.add_argument('--draw-boxes', help='whether to draw bounding boxes', action='store_true')
     parser.add_argument(
         '-l', '--prediction-length', type=float, default=1.0,
         help='number of seconds to predict trajectory in the future'
@@ -24,6 +25,7 @@ if __name__ == '__main__':
 
     cfg.MAIN.HEAD_DETECTION = args.head_detection
     cfg.OUTPUT_VIDEO.CYCLE_LEN = args.prediction_length
+    cfg.OUTPUT_VIDEO.DRAW_BOX = args.draw_boxes
 
     processor = VideoProcessor(cfg)
     processor.process(args.input_video)
