@@ -1,5 +1,5 @@
 import cv2
-from tracking import IOUModelTracking
+from tracking import Tracking
 from tqdm import tqdm
 import os
 import numpy as np
@@ -20,6 +20,8 @@ VIDEO_FILE_NAME = 'MOT17-09-SDP.mp4'
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/forecaster/P1033669.mp4'
 # VIDEO_FILE_NAME = '/home/marcus/data/sber/forecaster/P1033788.mp4'
 
+
+# class VideoProcessor
 
 def draw_tracked_detections(frame, tracked_detections):
     for detection in tracked_detections:
@@ -44,20 +46,30 @@ def draw_tracked_detections(frame, tracked_detections):
                 color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH)
 
 
+def draw_trajectories(cfg, frame, trajectories, colors, frames=None):
+    for time_index in range(1, cfg.OUTPUT_VIDEO.CYCLE_LEN):
+        if frames is not None:
+            frame = np.array(frame)
+
+        for traj, color in zip(trajectories, colors):
+            x_start, y_start = traj[time_index - 1]
+            x_end, y_end = traj[time_index]
+
+            cv2.line(
+                frame, (x_start, y_start), (x_end, y_end),
+                color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH
+            )
+
+        if frames is not None:
+            frames.append(frame)
+
+    return frame
+
+
 def demo(cfg):
 
-    if cfg.MAIN.HEAD_DETECTION:
-        det = HeadDetector(
-            score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
-            nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
-        )
-    else:
-        det = PoseDetector(
-            score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
-            nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
-        )
-
-    tracking = IOUModelTracking(
+    tracking = Tracking(
+        cfg,
         state_noise=cfg.TRACKING.STATE_NOISE,
         r_scale=cfg.TRACKING.R_SCALE,
         q_var=cfg.TRACKING.Q_VAR,
@@ -67,55 +79,27 @@ def demo(cfg):
     )
 
     tracked_frames = list()
-
-    cycle_len = cfg.OUTPUT_VIDEO.CYCLE_LEN
-
     draw_tracks = False
-    saved_tracks, saved_colors = None, None
+    trajectories, colors = None, None
 
-    for i, frame in tqdm(enumerate(video_iter(VIDEO_FILE_NAME))):
-        next_frame = np.array(frame)
+    for i, next_frame in tqdm(enumerate(video_iter(VIDEO_FILE_NAME))):
         next_frame_to_visual = np.array(next_frame)
 
-        if draw_tracks and i % cycle_len != 0:
-            trajectories, colors = saved_tracks, saved_colors
-            for time_index in range(1, cycle_len):
-                next_frame_to_visual = np.array(next_frame_to_visual)
+        if draw_tracks and i % cfg.OUTPUT_VIDEO.CYCLE_LEN != 0:
+            draw_trajectories(cfg, next_frame_to_visual, trajectories=trajectories, colors=colors)
 
-                for traj, color in zip(trajectories, colors):
-                    x_start, y_start = traj[time_index - 1]
-                    x_end, y_end = traj[time_index]
-
-                    cv2.line(
-                        next_frame_to_visual,
-                        (x_start, y_start), (x_end, y_end),
-                        color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH
-                    )
-
-        if i != 0 and i % cycle_len == 0:
+        if i != 0 and i % cfg.OUTPUT_VIDEO.CYCLE_LEN == 0:
             draw_tracks = True
             trajectories, colors = tracking.predict_trajectories(
-                cycle_len, min_age=cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
+                cfg.OUTPUT_VIDEO.CYCLE_LEN, min_age=cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
             )
-            saved_tracks, saved_colors = trajectories, colors
 
-            for time_index in range(1, cycle_len):
-                next_frame_to_visual = np.array(next_frame_to_visual)
+            next_frame_to_visual = draw_trajectories(
+                cfg, next_frame_to_visual,
+                trajectories=trajectories, colors=colors, frames=tracked_frames
+            )
 
-                for traj, color in zip(trajectories, colors):
-                    x_start, y_start = traj[time_index - 1]
-                    x_end, y_end = traj[time_index]
-
-                    cv2.line(
-                        next_frame_to_visual,
-                        (x_start, y_start), (x_end, y_end),
-                        color.tolist(), cfg.OUTPUT_VIDEO.LINE_WIDTH
-                    )
-
-                tracked_frames.append(next_frame_to_visual)
-
-        predictions = det.predict(next_frame)
-        tracked_detections = tracking.track(predictions)
+        tracked_detections = tracking.track(next_frame)
         draw_tracked_detections(next_frame_to_visual, tracked_detections)
 
         tracked_frames.append(next_frame_to_visual)

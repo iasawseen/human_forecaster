@@ -1,4 +1,3 @@
-from collections import deque
 from scipy.optimize import linear_sum_assignment
 import numpy as np
 from filterpy.kalman import KalmanFilter, ExtendedKalmanFilter, EnsembleKalmanFilter
@@ -6,6 +5,7 @@ from filterpy.common import Q_discrete_white_noise
 import seaborn as sns
 import itertools
 import copy
+from model import HeadDetector, PoseDetector
 
 
 class KalmanWrapper:
@@ -37,7 +37,7 @@ class KalmanWrapper:
         return self.filter.x[0], self.filter.x[2]
 
 
-class IOUKalmanTracker:
+class KalmanTracker:
     def __init__(self, detection, state_noise=1.0, r_scale=1.0, q_var=1.0, color=(255, 255, 255)):
         self.color = color
         self.center_filter = KalmanWrapper(
@@ -111,8 +111,21 @@ def bb_intersection_over_union(boxA, boxB):
     return iou
 
 
-class IOUModelTracking:
-    def __init__(self, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_age=4, min_hits=1):
+class Tracking:
+    def __init__(self, cfg, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_age=4, min_hits=1):
+        self.cfg = cfg
+
+        if self.cfg.MAIN.HEAD_DETECTION:
+            self.detector = HeadDetector(
+                score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+                nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+            )
+        else:
+            self.detector = PoseDetector(
+                score_threshold=cfg.DETECTING.SCORE_THRESHOLD,
+                nms_threshold=cfg.DETECTING.NMS_IOU_THRESHOLD
+            )
+
         self.state_noise = state_noise
         self.r_scale = r_scale
         self.q_var = q_var
@@ -198,10 +211,13 @@ class IOUModelTracking:
 
         return trajectories_array, trajectories_color
 
-    def track(self, detections):
+    def track(self, next_frame):
         """
         Pipeline function for detection and tracking
         """
+
+        detections = self.detector.predict(next_frame)
+
         self.frame_count += 1
 
         if len(self.tracker_list) == 0 and len(detections) == 0:
@@ -232,7 +248,7 @@ class IOUModelTracking:
             for index in unmatched_detections:
                 detection = detections[index]
 
-                new_tracker = IOUKalmanTracker(
+                new_tracker = KalmanTracker(
                     detection,
                     state_noise=self.state_noise, r_scale=self.r_scale, q_var=self.q_var,
                     color=(np.array(next(self.tracker_palette)) * 255).astype(np.int)
@@ -261,7 +277,7 @@ class IOUModelTracking:
 
 if __name__ == "__main__":
     # uber_tracker = IOUModelTracker(
-    uber_tracker = IOUKalmanTracker(
+    uber_tracker = KalmanTracker(
         {'center': [100, 100], 'box': [[50, 50], [150, 150]], 'nose': [75, 75]}
     )
 
