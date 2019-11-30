@@ -38,7 +38,10 @@ sudo docker build . -t sawseen/pytorch_cv:pose_forecaster
 cd ..
 ```
 
+# Head detection
 
+If you want to track and predict trajectories based on head detection you need to download  
+[checkpoint](https://yadi.sk/d/tm98vPivVSSYmg) and put it into `checkpoints/` folder of current project.
 
 # Settings 
 

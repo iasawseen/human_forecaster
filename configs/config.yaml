@@ -4,7 +4,7 @@ MAIN:
 
 DETECTING:
   HEAD_CONFIG_FILE_PATH: './configs/head_cascade_rcnn_dconv_c3-c5_r50_fpn_1x.py'
-  HEAD_CHECKPOINT_FILE_PATH: './models/cascade_epoch_11.pth'
+  HEAD_CHECKPOINT_FILE_PATH: './checkpoints/head_cascase_checkpoint.pth'
   SCORE_THRESHOLD: 0.75
   NMS_IOU_THRESHOLD: 0.2
 
