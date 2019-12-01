@@ -92,9 +92,9 @@ OUTPUT_VIDEO:
 `MAX_MISSES` is a parameter that tells how long a tracker will live without any matched detections.
 `MIN_HITS` is a parameter that tells minimum number of frames for a tracker to be drawn.
 
-4. `OUTPUT_VIDEO` specifies parameters of the output video. `CYCLE_LEN` is period of predicted trajectory. 
-`BLOB_SIZE` and `LINE_WIDTH` are sizes of blob around human anchor point and trajectory line.
-`FPS` is desired frames per second for output video. `MIN_AGE_FOR_TRAJECTORY` is a minimum age for tracker in seconds that trajectory will be drawn.
+4. `OUTPUT_VIDEO` specifies parameters of the output video. `CYCLE_LEN` is a period of predicted trajectory in seconds.
+`BLOB_SIZE` and `LINE_WIDTH` are sizes of blob around human anchor point and trajectory line in pixels.
+`FPS` is a desired frames per second for output video. `MIN_AGE_FOR_TRAJECTORY` is a minimum age for tracker in seconds for trajectory to be drawn.
 `DRAW_BOX` states whether to draw bounding boxes around objects. You can use `COMPRESS` to enable output video compression.
 
 # Demo
@@ -106,7 +106,7 @@ make run
 make exec 
 ```
 
-Currently `demo.py` works only with videos in current folder.
+Currently `demo.py` works only with videos in a current folder.
 
 To process your video launch `demo.py` with specified arguments:
 
