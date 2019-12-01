@@ -105,16 +105,20 @@ To start working in container run the following commands:
 make run 
 make exec 
 ```
-Then launch `demo.py` with specified arguments:
+
+Currently `demo.py` works only with videos in current folder.
+
+To process your video launch `demo.py` with specified arguments:
 
 ```bash
-python demo.py input_videl.mp4 --output-video output_video.mp4 --prediction-length 2.0 --head-detection --draw-boxes
+python demo.py input_video.mp4 --output-video output_video.mp4 --prediction-length 2.0 --head-detection --draw-boxes
 ``` 
 Where: 
 * `output-video`: output video file name,
 * `prediction-length`: length of trajectories in seconds (overrides config parameter), 
 * `head-detection`: flag whether to detect heads (overrides config parameter),
 * `draw-boxes`: flag whether to draw bounding boxes around objects. 
+
 
 After you have done working stop and remove container:
 ```bash

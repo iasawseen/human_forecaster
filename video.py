@@ -125,7 +125,7 @@ class VideoProcessor:
 
         return frame
 
-    def save_video(self, file_path: str, compress: bool = False):
+    def save_video(self, file_path: str):
         if len(self.tracked_frames) == 0:
             return
 
@@ -143,6 +143,6 @@ class VideoProcessor:
 
         out.release()
 
-        if compress:
+        if self.cfg.OUTPUT_VIDEO.COMPRESS:
             os.system(f'ffmpeg -i {file_path} -vcodec libx264 tmp.mp4')
             os.system(f'mv -f tmp.mp4 {file_path}')
