@@ -16,7 +16,7 @@ Here are some examples:
 ![Example0](images/example0.gif)
 ![Example1](images/example1.gif)
 
-Every n seconds future trajectories are predicted and drawn on current frame. 
+Every n seconds future trajectories for head or neck are predicted and drawn on current frame. 
 
 To reproduce these results go to next sections.
 
