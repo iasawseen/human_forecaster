@@ -104,7 +104,7 @@ class KalmanTracker:
 
 
 class Tracking:
-    def __init__(self, cfg, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_age=4, min_hits=1):
+    def __init__(self, cfg, state_noise=40.0, r_scale=10.0, q_var=1.0, iou_threshold=0.3, max_misses=4, min_hits=1):
         self.cfg = cfg
 
         if self.cfg.MAIN.HEAD_DETECTION:
@@ -125,7 +125,7 @@ class Tracking:
 
         self.iou_threshold = iou_threshold
         self.frame_count = 0
-        self.max_misses = max_age
+        self.max_misses = max_misses
         self.min_hits = min_hits
         self.trackers = list()
         self.tracker_palette = itertools.cycle(sns.color_palette())
@@ -140,13 +140,10 @@ class Tracking:
 
         self._update_trackers(detections)
 
-        filtered_detections = [
-            tracker.get_state() for tracker in self.trackers
-            if tracker.get_hits() >= self.min_hits and tracker.get_misses() <= self.max_misses
-        ]
-
         # filter trackers
         self.trackers = [tracker for tracker in self.trackers if tracker.get_misses() <= self.max_misses]
+
+        filtered_detections = [tracker.get_state() for tracker in self.trackers if tracker.get_hits() >= self.min_hits]
 
         return filtered_detections
 
@@ -168,7 +165,7 @@ class Tracking:
 
         return trajectories_array, trajectories_color
 
-    def _update_trackers(self, detections):
+    def _update_trackers(self, detections: List[Dict]):
         matched, unmatched_detections, unmatched_trackers = \
             self._assign_detections_to_trackers(
                 trackers=self.trackers, detections=detections

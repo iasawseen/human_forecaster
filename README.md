@@ -69,7 +69,7 @@ TRACKING:
   R_SCALE: 5.0
   Q_VAR: 100.0
   IOU_THRESHOLD: 0.1
-  MAX_AGE: 6
+  MAX_MISSES: 6
   MIN_HITS: 2
 
 OUTPUT_VIDEO:
@@ -89,7 +89,7 @@ OUTPUT_VIDEO:
  
 3. `TRACKING` is responsible for tracking parameters. `STATE_NOISE`, `R_SCALE`, `Q_VAR` are Kalman filter parameters. 
 `IOU_THRESHOLD` is an intersection over union threshold for assuming whether detection and predicted state of current tracker are matched. 
-`MAX_AGE` is a parameter that tells how long a tracker will live without any matched detections.
+`MAX_MISSES` is a parameter that tells how long a tracker will live without any matched detections.
 `MIN_HITS` is a parameter that tells minimum number of frames for a tracker to be drawn.
 
 4. `OUTPUT_VIDEO` specifies parameters of the output video. `CYCLE_LEN` is period of predicted trajectory. 

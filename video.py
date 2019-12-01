@@ -19,7 +19,7 @@ class VideoProcessor:
             r_scale=self.cfg.TRACKING.R_SCALE,
             q_var=self.cfg.TRACKING.Q_VAR,
             iou_threshold=self.cfg.TRACKING.IOU_THRESHOLD,
-            max_age=self.cfg.TRACKING.MAX_AGE,
+            max_misses=self.cfg.TRACKING.MAX_MISSES,
             min_hits=self.cfg.TRACKING.MIN_HITS
         )
 

@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('--draw-boxes', help='whether to draw bounding boxes', action='store_true')
     parser.add_argument(
         '-l', '--prediction-length', type=float, default=1.0,
-        help='number of seconds to predict trajectory in the future'
+        help='number of seconds to predict trajectory in the future, not 0.0'
     )
 
     return parser.parse_args()

@@ -33,7 +33,7 @@ RUN pip install \
 RUN conda install cython -y && conda clean --all
 
 WORKDIR /tmp/for_mmdetection
-RUN git clone https://github.com/open-mmlab/mmdetection.git
+RUN git clone -b head_detection https://github.com/iasawseen/mmdetection.git
 WORKDIR /tmp/for_mmdetection/mmdetection
 RUN pip install mmcv
 RUN pip install -v -e .
