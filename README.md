@@ -79,6 +79,7 @@ OUTPUT_VIDEO:
   FPS: 16
   MIN_AGE_FOR_TRAJECTORY: 12
   DRAW_BOX: True
+  COMPRESS: False
 ```
 
 1. `MAIN` section consists of `SEED` for reproducibility and `HEAD_DETECTION` whether to use model trained on human heads.
@@ -93,8 +94,8 @@ OUTPUT_VIDEO:
 
 4. `OUTPUT_VIDEO` specifies parameters of the output video. `CYCLE_LEN` is period of predicted trajectory. 
 `BLOB_SIZE` and `LINE_WIDTH` are sizes of blob around human anchor point and trajectory line.
-`FPS` is desired frames per second for output video. `MIN_AGE_FOR_TRAJECTORY` is a minimum age for tracker in frames that trajectory will be drawn.
-`DRAW_BOX` states whether to draw bounding boxes around objects.
+`FPS` is desired frames per second for output video. `MIN_AGE_FOR_TRAJECTORY` is a minimum age for tracker in seconds that trajectory will be drawn.
+`DRAW_BOX` states whether to draw bounding boxes around objects. You can use `COMPRESS` to enable output video compression.
 
 # Demo
 

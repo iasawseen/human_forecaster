@@ -40,13 +40,13 @@ class KalmanWrapper:
 class KalmanTracker:
     def __init__(self, detection, state_noise=1.0, r_scale=1.0, q_var=1.0, color=(255, 255, 255)):
         self.color = color
-        self.center_filter = KalmanWrapper(
-            detection['center'],
+        self.anchor_filter = KalmanWrapper(
+            detection['anchor'],
             state_noise=state_noise, r_scale=r_scale, q_var=q_var
         )
 
-        self.nose_filter = KalmanWrapper(
-            detection['nose'],
+        self.point_of_interest_filter = KalmanWrapper(
+            detection['point_of_interest'],
             state_noise=state_noise, r_scale=r_scale, q_var=q_var
         )
         self.box_size = self.box_to_size(detection['box'])
@@ -59,28 +59,28 @@ class KalmanTracker:
         return box[1][0] - box[0][0], box[1][1] - box[0][1]
 
     def update(self, detection):
-        self.center_filter.predict()
-        self.center_filter.update(detection['center'])
-        self.nose_filter.predict()
-        self.nose_filter.update(detection['nose'])
+        self.anchor_filter.predict()
+        self.anchor_filter.update(detection['anchor'])
+        self.point_of_interest_filter.predict()
+        self.point_of_interest_filter.update(detection['point_of_interest'])
         self.box_size = self.box_to_size(detection['box'])
         self.age += 1
 
     def update_with_estimation(self):
-        self.center_filter.predict()
-        self.nose_filter.predict()
+        self.anchor_filter.predict()
+        self.point_of_interest_filter.predict()
         self.age += 1
 
     def get_state(self):
         return {
-            'center': self.center_filter.get_coors(),
+            'anchor': self.anchor_filter.get_coors(),
             'box_size': self.get_box_size(),
-            'nose': self.nose_filter.get_coors(),
+            'point_of_interest': self.point_of_interest_filter.get_coors(),
             'color': self.color
         }
 
     def get_estimation(self):
-        return self.center_filter.get_coors()
+        return self.anchor_filter.get_coors()
 
     def get_box_size(self):
         return self.box_size
@@ -205,7 +205,7 @@ class Tracking:
                 tracker.update_with_estimation()
 
         def process_trajectory(trajectory):
-            return np.array([point['nose'] for point in trajectory]).astype(np.int)
+            return np.array([point['point_of_interest'] for point in trajectory]).astype(np.int)
 
         trajectories_array = [process_trajectory(trajectory) for trajectory in trajectories]
         trajectories_color = [trajectory[0]['color'] for trajectory in trajectories]
@@ -249,6 +249,7 @@ class Tracking:
             for index in unmatched_detections:
                 detection = detections[index]
 
+                # assign new filter for newly discovered object
                 new_tracker = KalmanTracker(
                     detection,
                     state_noise=self.state_noise, r_scale=self.r_scale, q_var=self.q_var,

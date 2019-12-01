@@ -77,9 +77,9 @@ class PoseDetector:
 
         predictions = [
             {
-                'center': get_box_center(box),
+                'anchor': get_box_center(box),
                 'box': box,
-                'nose': (
+                'point_of_interest': (
                     np.array(prediction_dict['left_shoulder'][index]) +
                     np.array(prediction_dict['right_shoulder'][index])
                 ) / 2
@@ -129,9 +129,9 @@ class HeadDetector:
 
         predictions = [
             {
-                'center': get_box_center(box),
+                'anchor': get_box_center(box),
                 'box': box,
-                'nose': get_box_center(box)
+                'point_of_interest': get_box_center(box)
             }
             for index, box in enumerate(prediction_dict['boxes'])
         ]

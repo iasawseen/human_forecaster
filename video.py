@@ -28,21 +28,24 @@ class VideoProcessor:
         video_iterator = self.video_iter(video_file_path)
         fps = int(next(video_iterator))
 
+        # length of a trajectory to predict
         future_len = int(self.cfg.OUTPUT_VIDEO.CYCLE_LEN * fps)
 
         for i, next_frame in tqdm(enumerate(video_iterator)):
             next_frame_to_visual = np.array(next_frame)
 
+            # draw full trajectory on current frame
             if draw_tracks and i % future_len != 0:
                 self.draw_trajectories(
                     next_frame_to_visual,
                     trajectories=trajectories, future_len=future_len, colors=colors
                 )
 
+            # draw new trajectory frame by frame
             if i != 0 and i % future_len == 0:
                 draw_tracks = True
                 trajectories, colors = tracking.predict_trajectories(
-                    future_len, min_age=self.cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY
+                    future_len, min_age=int(self.cfg.OUTPUT_VIDEO.MIN_AGE_FOR_TRAJECTORY * fps)
                 )
 
                 next_frame_to_visual = self.draw_trajectories(
@@ -50,6 +53,7 @@ class VideoProcessor:
                     trajectories=trajectories, colors=colors, future_len=future_len, save_intermediate=True
                 )
 
+            # get current tracked objects
             tracked_detections = tracking.track(next_frame)
             self.draw_tracked_detections(next_frame_to_visual, tracked_detections)
             self.tracked_frames.append(next_frame_to_visual)
@@ -73,9 +77,9 @@ class VideoProcessor:
 
     def draw_tracked_detections(self, frame, tracked_detections):
         for detection in tracked_detections:
-            center = detection['nose']
+            point_of_interest = detection['point_of_interest']
             color = detection['color']
-            box_center = detection['center']
+            box_center = detection['anchor']
             width, height = detection['box_size']
 
             x_min, x_max = int(box_center[0] - width // 2), int(box_center[0] + width // 2)
@@ -83,7 +87,7 @@ class VideoProcessor:
 
             cv2.circle(
                 frame,
-                (int(center[0]), int(center[1])),
+                (int(point_of_interest[0]), int(point_of_interest[1])),
                 self.cfg.OUTPUT_VIDEO.BLOB_SIZE, color.tolist(), -1
             )
 
@@ -112,7 +116,7 @@ class VideoProcessor:
 
         return frame
 
-    def save_video(self, file_path):
+    def save_video(self, file_path, compress=False):
         if len(self.tracked_frames) == 0:
             return
 
@@ -130,5 +134,6 @@ class VideoProcessor:
 
         out.release()
 
-        os.system(f'ffmpeg -i {file_path} -vcodec libx264 tmp.mp4')
-        os.system(f'mv -f tmp.mp4 {file_path}')
+        if compress:
+            os.system(f'ffmpeg -i {file_path} -vcodec libx264 tmp.mp4')
+            os.system(f'mv -f tmp.mp4 {file_path}')
