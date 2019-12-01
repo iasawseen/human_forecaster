@@ -6,10 +6,11 @@ import seaborn as sns
 import itertools
 import copy
 from model import HeadDetector, PoseDetector
+from typing import List, Dict, Tuple
 
 
 class KalmanWrapper:
-    def __init__(self, coors, state_noise=1.0, r_scale=1.0, q_var=1.0):
+    def __init__(self, coors: Tuple, state_noise: float = 1.0, r_scale: float = 1.0, q_var: float = 1.0):
         self.filter = KalmanFilter(dim_x=4, dim_z=2)
         self.filter.x = np.array([coors[0], 0, coors[1], 0])
 
@@ -33,12 +34,18 @@ class KalmanWrapper:
     def predict(self):
         self.filter.predict()
 
-    def get_coors(self):
+    def get_coors(self) -> Tuple:
         return self.filter.x[0], self.filter.x[2]
 
 
 class KalmanTracker:
-    def __init__(self, detection, state_noise=1.0, r_scale=1.0, q_var=1.0, color=(255, 255, 255)):
+    def __init__(self,
+                 detection: Dict,
+                 state_noise: float = 1.0,
+                 r_scale: float = 1.0,
+                 q_var: float = 1.0,
+                 color: Tuple = (255, 255, 255)
+                 ):
         self.color = color
         self.anchor_filter = KalmanWrapper(
             detection['anchor'],
@@ -52,26 +59,30 @@ class KalmanTracker:
         self.box_size = self.box_to_size(detection['box'])
 
         self.hits = 0
-        self.no_losses = 0
+        self.misses = 0
         self.age = 1
 
-    def box_to_size(self, box):
+    @staticmethod
+    def box_to_size(box: Tuple[Tuple]) -> Tuple:
         return box[1][0] - box[0][0], box[1][1] - box[0][1]
 
-    def update(self, detection):
+    def update(self, detection: Dict):
         self.anchor_filter.predict()
         self.anchor_filter.update(detection['anchor'])
         self.point_of_interest_filter.predict()
         self.point_of_interest_filter.update(detection['point_of_interest'])
         self.box_size = self.box_to_size(detection['box'])
         self.age += 1
+        self.hits += 1
+        self.misses = 0
 
     def update_with_estimation(self):
         self.anchor_filter.predict()
         self.point_of_interest_filter.predict()
         self.age += 1
+        self.misses += 1
 
-    def get_state(self):
+    def get_state(self) -> Dict:
         return {
             'anchor': self.anchor_filter.get_coors(),
             'box_size': self.get_box_size(),
@@ -79,33 +90,38 @@ class KalmanTracker:
             'color': self.color
         }
 
-    def get_estimation(self):
+    def get_estimation(self) -> Tuple:
         return self.anchor_filter.get_coors()
 
-    def get_box_size(self):
+    def get_box_size(self) -> Tuple:
         return self.box_size
 
+    def get_misses(self):
+        return self.misses
 
-def bb_intersection_over_union(boxA, boxB):
+
+def intersection_over_union(box_a: List, box_b: List) -> float:
     # determine the (x, y)-coordinates of the intersection rectangle
-    xA = max(boxA[0], boxB[0])
-    yA = max(boxA[1], boxB[1])
-    xB = min(boxA[2], boxB[2])
-    yB = min(boxA[3], boxB[3])
+    x_a = max(box_a[0], box_b[0])
+    y_a = max(box_a[1], box_b[1])
+    x_b = min(box_a[2], box_b[2])
+    y_b = min(box_a[3], box_b[3])
 
     # compute the area of intersection rectangle
-    interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
-    if interArea == 0:
+    intersection_area = abs(max((x_b - x_a, 0)) * max((y_b - y_a), 0))
+
+    if intersection_area == 0:
         return 0
+
     # compute the area of both the prediction and ground-truth
     # rectangles
-    boxAArea = abs((boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
-    boxBArea = abs((boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
+    boxaarea = abs((box_a[2] - box_a[0]) * (box_a[3] - box_a[1]))
+    boxbarea = abs((box_b[2] - box_b[0]) * (box_b[3] - box_b[1]))
 
     # compute the intersection over union by taking the intersection
     # area and dividing it by the sum of prediction + ground-truth
     # areas - the interesection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
+    iou = intersection_area / float(boxaarea + boxbarea - intersection_area)
 
     # return the intersection over union value
     return iou
@@ -132,13 +148,14 @@ class Tracking:
         self.q_var = q_var
 
         self.iou_threshold = iou_threshold
-        self.frame_count = 0  # frame counter
-        self.max_age = max_age  # no.of consecutive unmatched detection before a track is deleted
-        self.min_hits = min_hits  # no. of consecutive matches needed to establish a track
-        self.tracker_list = list()  # list for trackers
+        self.frame_count = 0
+        self.max_misses = max_age
+        self.min_hits = min_hits
+        self.trackers = list()
         self.tracker_palette = itertools.cycle(sns.color_palette())
 
-    def get_IOU(self, tracker, detection):
+    @staticmethod
+    def get_iou(tracker: KalmanTracker, detection: Dict) -> float:
         tracker_center = tracker.get_estimation()
         width, height = tracker.get_box_size()
 
@@ -151,36 +168,27 @@ class Tracking:
 
         detection_box = [box[0][0], box[0][1], box[1][0], box[1][1]]
 
-        iou = bb_intersection_over_union(tracker_box, detection_box)
+        iou = intersection_over_union(tracker_box, detection_box)
 
         return iou
 
-    def assign_detections_to_trackers(self, trackers, detections, iou_threshold=20):
-        """
-        From current list of trackers and new detections, output matched detections,
-        unmatchted trackers, unmatched detections.
-        """
-        IOU_mat = np.zeros((len(trackers), len(detections)), dtype=np.float32)
+    def assign_detections_to_trackers(self, trackers, detections, iou_threshold: float = 20) -> \
+            Tuple[np.array, np.array, np.array]:
 
+        # constructing distance matrix
+        IOU_mat = np.zeros((len(trackers), len(detections)), dtype=np.float32)
         for tracker_index, tracker in enumerate(trackers):
             for detection_index, detection in enumerate(detections):
-                IOU_mat[tracker_index, detection_index] = self.get_IOU(tracker, detection)
+                IOU_mat[tracker_index, detection_index] = self.get_iou(tracker, detection)
 
+        # assigning detections to trackers
         row_ind, col_ind = linear_sum_assignment(-IOU_mat)
 
-        unmatched_trackers = list()
-        unmatched_detections = list()
+        unmatched_trackers = [index for index in range(len(trackers)) if index not in row_ind]
+        unmatched_detections = [index for index in range(len(detections)) if index not in col_ind]
 
-        for tracking_index, tracker in enumerate(trackers):
-            if tracking_index not in row_ind:
-                unmatched_trackers.append(tracking_index)
-
-        for detection_index, detection in enumerate(detections):
-            if detection_index not in col_ind:
-                unmatched_detections.append(detection_index)
-
+        # filtering matches with low threshold
         matches = list()
-
         for m in zip(row_ind, col_ind):
             if IOU_mat[m[0], m[1]] < iou_threshold:
                 unmatched_trackers.append(m[0])
@@ -195,8 +203,9 @@ class Tracking:
 
         return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
 
-    def predict_trajectories(self, future_len=32, min_age=6):
-        trackers = [copy.deepcopy(tracker) for tracker in self.tracker_list if tracker.age > min_age]
+    def predict_trajectories(self, future_len: int = 32, min_age: int = 6) -> Tuple[List, List]:
+        # copy trackers in order to preserve states of original trackers
+        trackers = [copy.deepcopy(tracker) for tracker in self.trackers if tracker.age > min_age]
         trajectories = [list() for _ in range(len(trackers))]
 
         for _ in range(future_len):
@@ -204,7 +213,7 @@ class Tracking:
                 trajectories[index].append(tracker.get_state())
                 tracker.update_with_estimation()
 
-        def process_trajectory(trajectory):
+        def process_trajectory(trajectory: List) -> np.array:
             return np.array([point['point_of_interest'] for point in trajectory]).astype(np.int)
 
         trajectories_array = [process_trajectory(trajectory) for trajectory in trajectories]
@@ -212,22 +221,18 @@ class Tracking:
 
         return trajectories_array, trajectories_color
 
-    def track(self, next_frame):
-        """
-        Pipeline function for detection and tracking
-        """
+    def track(self, next_frame: np.array) -> List[Dict]:
+        self.frame_count += 1
 
         detections = self.detector.predict(next_frame)
 
-        self.frame_count += 1
-
-        if len(self.tracker_list) == 0 and len(detections) == 0:
+        if len(self.trackers) == 0 and len(detections) == 0:
             return list()
 
         trackers = list()
 
-        if len(self.tracker_list) > 0:
-            for tracker in self.tracker_list:
+        if len(self.trackers) > 0:
+            for tracker in self.trackers:
                 trackers.append(tracker)
 
         matched, unmatched_detections, unmatched_trackings = \
@@ -235,16 +240,14 @@ class Tracking:
                 trackers=trackers, detections=detections, iou_threshold=self.iou_threshold
             )
 
-        # Deal with matched detections
+        # Process matched detections
         if matched.size > 0:
             for tracking_index, detection_index in matched:
                 detection = detections[detection_index]
-                tmp_tracker = self.tracker_list[tracking_index]
+                tmp_tracker = self.trackers[tracking_index]
                 tmp_tracker.update(detection)
-                tmp_tracker.hits += 1
-                tmp_tracker.no_losses = 0
 
-        # Deal with unmatched detections
+        # Process unmatched detections
         if len(unmatched_detections) > 0:
             for index in unmatched_detections:
                 detection = detections[index]
@@ -256,23 +259,21 @@ class Tracking:
                     color=(np.array(next(self.tracker_palette)) * 255).astype(np.int)
                 )
 
-                self.tracker_list.append(new_tracker)
+                self.trackers.append(new_tracker)
 
-        # Deal with unmatched tracks
+        # Process unmatched tracks
         if len(unmatched_trackings) > 0:
             for tracking_index in unmatched_trackings:
-                tmp_tracker = self.tracker_list[tracking_index]
-                tmp_tracker.no_losses += 1
-                tmp_tracker.update_with_estimation()
+                self.trackers[tracking_index].update_with_estimation()
 
         # The list of tracks to be annotated
         good_detections = list()
 
-        for tracker in self.tracker_list:
-            if tracker.hits >= self.min_hits and tracker.no_losses <= self.max_age:
+        for tracker in self.trackers:
+            if tracker.hits >= self.min_hits and tracker.get_misses() <= self.max_misses:
                 good_detections.append(tracker.get_state())
 
-        self.tracker_list = [x for x in self.tracker_list if x.no_losses <= self.max_age]
+        self.trackers = [tracker for tracker in self.trackers if tracker.get_misses() <= self.max_misses]
 
         return good_detections
 

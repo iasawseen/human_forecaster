@@ -1,12 +1,14 @@
 import torch
 import numpy as np
 import cv2
+import yacs
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from mmdet.apis import init_detector, inference_detector
 from collections import defaultdict
+from typing import Tuple, List, Dict
 
 
-def get_box_center(box):
+def get_box_center(box: Tuple[Tuple]) -> Tuple:
     return (box[1][0] + box[0][0]) // 2, (box[1][1] + box[0][1]) // 2
 
 
@@ -31,25 +33,27 @@ class PoseDetector:
         'right_ankle'
     ]
 
-    def __init__(self, score_threshold=0.5, nms_threshold=0.5):
+    def __init__(self, score_threshold: float = 0.5, nms_threshold: float = 0.5):
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
+
         self.model = keypointrcnn_resnet50_fpn(
             pretrained=True,
             box_score_thresh=self.score_threshold,
             box_nms_thresh=self.nms_threshold
         ).cuda()
+
         self.model.eval()
         self.name_to_index = {name: index for index, name in enumerate(self.COCO_PERSON_KEYPOINT_NAMES)}
 
-    def get_coors(self, keypoint, name):
+    def get_coors(self, keypoint: Dict, name: str):
         return keypoint[self.name_to_index[name], 0], keypoint[self.name_to_index[name], 1]
 
     @staticmethod
-    def convert_bgr_to_rgb(img):
+    def convert_bgr_to_rgb(img: np.array) -> np.array:
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    def predict(self, img):
+    def predict(self, img: np.array) -> List[Dict]:
         img = self.convert_bgr_to_rgb(img) / 255
         img = img.transpose((2, 0, 1))
         x = [torch.from_numpy(img.astype(np.float32)).cuda()]
@@ -91,7 +95,12 @@ class PoseDetector:
 
 
 class HeadDetector:
-    def __init__(self, cfg, score_threshold=0.75, nms_threshold=0.75, cuda_id=0):
+    def __init__(self,
+                 cfg: yacs.config.CfgNode,
+                 score_threshold: float = 0.75,
+                 nms_threshold: float = 0.75,
+                 cuda_id: int = 0
+                 ):
         self.cfg = cfg
         self.score_threshold = score_threshold
         self.nms_threshold = nms_threshold
@@ -113,7 +122,7 @@ class HeadDetector:
             self.model.cfg['test_cfg']['rcnn']['score_thr'] = score_threshold
             self.model.cfg['test_cfg']['rcnn']['nms']['iou_thr'] = nms_threshold
 
-    def predict(self, img):
+    def predict(self, img: np.array) -> List[Dict]:
         result = inference_detector(self.model, img)
 
         bboxes = np.vstack(result)

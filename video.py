@@ -1,16 +1,18 @@
 import cv2
-from tracking import Tracking
-from tqdm import tqdm
 import os
 import numpy as np
+import yacs
+from typing import List, Dict
+from tracking import Tracking
+from tqdm import tqdm
 
 
 class VideoProcessor:
-    def __init__(self, cfg):
+    def __init__(self, cfg: yacs.config.CfgNode):
         self.cfg = cfg
         self.tracked_frames = None
 
-    def process(self, video_file_path):
+    def process(self, video_file_path: str):
         tracking = Tracking(
             self.cfg,
             state_noise=self.cfg.TRACKING.STATE_NOISE,
@@ -59,7 +61,7 @@ class VideoProcessor:
             self.tracked_frames.append(next_frame_to_visual)
 
     @staticmethod
-    def video_iter(file_path):
+    def video_iter(file_path: str):
         video = cv2.VideoCapture(file_path)
         fps = video.get(cv2.CAP_PROP_FPS)
 
@@ -75,7 +77,7 @@ class VideoProcessor:
             if success:
                 yield image
 
-    def draw_tracked_detections(self, frame, tracked_detections):
+    def draw_tracked_detections(self, frame: np.array, tracked_detections: List[Dict]):
         for detection in tracked_detections:
             point_of_interest = detection['point_of_interest']
             color = detection['color']
@@ -97,7 +99,14 @@ class VideoProcessor:
                     (x_min, y_min), (x_max, y_max),
                     color.tolist(), self.cfg.OUTPUT_VIDEO.LINE_WIDTH)
 
-    def draw_trajectories(self, frame, trajectories, colors, future_len, save_intermediate=False):
+    def draw_trajectories(self,
+                          frame: np.array,
+                          trajectories: List,
+                          colors: List[np.array],
+                          future_len: int,
+                          save_intermediate: bool = False
+                          ):
+
         for time_index in range(1, future_len):
             if save_intermediate:
                 frame = np.array(frame)
@@ -116,7 +125,7 @@ class VideoProcessor:
 
         return frame
 
-    def save_video(self, file_path, compress=False):
+    def save_video(self, file_path: str, compress: bool = False):
         if len(self.tracked_frames) == 0:
             return
 
