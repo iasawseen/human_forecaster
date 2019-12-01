@@ -96,35 +96,11 @@ class KalmanTracker:
     def get_box_size(self) -> Tuple:
         return self.box_size
 
-    def get_misses(self):
+    def get_misses(self) -> int:
         return self.misses
 
-
-def intersection_over_union(box_a: List, box_b: List) -> float:
-    # determine the (x, y)-coordinates of the intersection rectangle
-    x_a = max(box_a[0], box_b[0])
-    y_a = max(box_a[1], box_b[1])
-    x_b = min(box_a[2], box_b[2])
-    y_b = min(box_a[3], box_b[3])
-
-    # compute the area of intersection rectangle
-    intersection_area = abs(max((x_b - x_a, 0)) * max((y_b - y_a), 0))
-
-    if intersection_area == 0:
-        return 0
-
-    # compute the area of both the prediction and ground-truth
-    # rectangles
-    boxaarea = abs((box_a[2] - box_a[0]) * (box_a[3] - box_a[1]))
-    boxbarea = abs((box_b[2] - box_b[0]) * (box_b[3] - box_b[1]))
-
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = intersection_area / float(boxaarea + boxbarea - intersection_area)
-
-    # return the intersection over union value
-    return iou
+    def get_hits(self) -> int:
+        return self.hits
 
 
 class Tracking:
@@ -154,54 +130,25 @@ class Tracking:
         self.trackers = list()
         self.tracker_palette = itertools.cycle(sns.color_palette())
 
-    @staticmethod
-    def get_iou(tracker: KalmanTracker, detection: Dict) -> float:
-        tracker_center = tracker.get_estimation()
-        width, height = tracker.get_box_size()
+    def track(self, next_frame: np.array) -> List[Dict]:
+        self.frame_count += 1
 
-        tracker_box = [
-            tracker_center[0] - width // 2, tracker_center[1] - height // 2,
-            tracker_center[0] + width // 2, tracker_center[1] + height // 2
+        detections = self.detector.predict(next_frame)
+
+        if len(self.trackers) == 0 and len(detections) == 0:
+            return list()
+
+        self._update_trackers(detections)
+
+        filtered_detections = [
+            tracker.get_state() for tracker in self.trackers
+            if tracker.get_hits() >= self.min_hits and tracker.get_misses() <= self.max_misses
         ]
 
-        box = detection['box']
+        # filter trackers
+        self.trackers = [tracker for tracker in self.trackers if tracker.get_misses() <= self.max_misses]
 
-        detection_box = [box[0][0], box[0][1], box[1][0], box[1][1]]
-
-        iou = intersection_over_union(tracker_box, detection_box)
-
-        return iou
-
-    def assign_detections_to_trackers(self, trackers, detections, iou_threshold: float = 20) -> \
-            Tuple[np.array, np.array, np.array]:
-
-        # constructing distance matrix
-        IOU_mat = np.zeros((len(trackers), len(detections)), dtype=np.float32)
-        for tracker_index, tracker in enumerate(trackers):
-            for detection_index, detection in enumerate(detections):
-                IOU_mat[tracker_index, detection_index] = self.get_iou(tracker, detection)
-
-        # assigning detections to trackers
-        row_ind, col_ind = linear_sum_assignment(-IOU_mat)
-
-        unmatched_trackers = [index for index in range(len(trackers)) if index not in row_ind]
-        unmatched_detections = [index for index in range(len(detections)) if index not in col_ind]
-
-        # filtering matches with low threshold
-        matches = list()
-        for m in zip(row_ind, col_ind):
-            if IOU_mat[m[0], m[1]] < iou_threshold:
-                unmatched_trackers.append(m[0])
-                unmatched_detections.append(m[1])
-            else:
-                matches.append(np.array(m).reshape(1, 2))
-
-        if len(matches) == 0:
-            matches = np.empty((0, 2), dtype=int)
-        else:
-            matches = np.concatenate(matches, axis=0)
-
-        return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
+        return filtered_detections
 
     def predict_trajectories(self, future_len: int = 32, min_age: int = 6) -> Tuple[List, List]:
         # copy trackers in order to preserve states of original trackers
@@ -221,31 +168,17 @@ class Tracking:
 
         return trajectories_array, trajectories_color
 
-    def track(self, next_frame: np.array) -> List[Dict]:
-        self.frame_count += 1
-
-        detections = self.detector.predict(next_frame)
-
-        if len(self.trackers) == 0 and len(detections) == 0:
-            return list()
-
-        trackers = list()
-
-        if len(self.trackers) > 0:
-            for tracker in self.trackers:
-                trackers.append(tracker)
-
-        matched, unmatched_detections, unmatched_trackings = \
-            self.assign_detections_to_trackers(
-                trackers=trackers, detections=detections, iou_threshold=self.iou_threshold
+    def _update_trackers(self, detections):
+        matched, unmatched_detections, unmatched_trackers = \
+            self._assign_detections_to_trackers(
+                trackers=self.trackers, detections=detections
             )
 
         # Process matched detections
         if matched.size > 0:
             for tracking_index, detection_index in matched:
                 detection = detections[detection_index]
-                tmp_tracker = self.trackers[tracking_index]
-                tmp_tracker.update(detection)
+                self.trackers[tracking_index].update(detection)
 
         # Process unmatched detections
         if len(unmatched_detections) > 0:
@@ -262,20 +195,84 @@ class Tracking:
                 self.trackers.append(new_tracker)
 
         # Process unmatched tracks
-        if len(unmatched_trackings) > 0:
-            for tracking_index in unmatched_trackings:
+        if len(unmatched_trackers) > 0:
+            for tracking_index in unmatched_trackers:
                 self.trackers[tracking_index].update_with_estimation()
 
-        # The list of tracks to be annotated
-        good_detections = list()
+    def _assign_detections_to_trackers(self, trackers, detections) -> \
+            Tuple[np.array, np.array, np.array]:
 
-        for tracker in self.trackers:
-            if tracker.hits >= self.min_hits and tracker.get_misses() <= self.max_misses:
-                good_detections.append(tracker.get_state())
+        # constructing distance matrix
+        IOU_mat = np.zeros((len(trackers), len(detections)), dtype=np.float32)
+        for tracker_index, tracker in enumerate(trackers):
+            for detection_index, detection in enumerate(detections):
+                IOU_mat[tracker_index, detection_index] = self._get_iou(tracker, detection)
 
-        self.trackers = [tracker for tracker in self.trackers if tracker.get_misses() <= self.max_misses]
+        # assigning detections to trackers
+        row_indices, column_indices = linear_sum_assignment(-IOU_mat)
 
-        return good_detections
+        unmatched_trackers = [index for index in range(len(trackers)) if index not in row_indices]
+        unmatched_detections = [index for index in range(len(detections)) if index not in column_indices]
+
+        # filtering matches with low threshold
+        matches = list()
+        for row, column in zip(row_indices, column_indices):
+            if IOU_mat[row, column] < self.iou_threshold:
+                unmatched_trackers.append(row)
+                unmatched_detections.append(column)
+            else:
+                matches.append(np.array([row, column]).reshape(1, 2))
+
+        if len(matches) == 0:
+            matches = np.empty((0, 2), dtype=int)
+        else:
+            matches = np.concatenate(matches, axis=0)
+
+        return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
+
+    def _get_iou(self, tracker: KalmanTracker, detection: Dict) -> float:
+        tracker_center = tracker.get_estimation()
+        width, height = tracker.get_box_size()
+
+        tracker_box = [
+            tracker_center[0] - width // 2, tracker_center[1] - height // 2,
+            tracker_center[0] + width // 2, tracker_center[1] + height // 2
+        ]
+
+        box = detection['box']
+
+        detection_box = [box[0][0], box[0][1], box[1][0], box[1][1]]
+
+        iou = self._intersection_over_union(tracker_box, detection_box)
+
+        return iou
+
+    @staticmethod
+    def _intersection_over_union(box_a: List, box_b: List) -> float:
+        # determine the (x, y)-coordinates of the intersection rectangle
+        x_a = max(box_a[0], box_b[0])
+        y_a = max(box_a[1], box_b[1])
+        x_b = min(box_a[2], box_b[2])
+        y_b = min(box_a[3], box_b[3])
+
+        # compute the area of intersection rectangle
+        intersection_area = abs(max((x_b - x_a, 0)) * max((y_b - y_a), 0))
+
+        if intersection_area == 0:
+            return 0
+
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxaarea = abs((box_a[2] - box_a[0]) * (box_a[3] - box_a[1]))
+        boxbarea = abs((box_b[2] - box_b[0]) * (box_b[3] - box_b[1]))
+
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = intersection_area / float(boxaarea + boxbarea - intersection_area)
+
+        # return the intersection over union value
+        return iou
 
 
 if __name__ == "__main__":
